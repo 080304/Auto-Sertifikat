@@ -1,0 +1,49 @@
+function generateCertificates() {
+  var sheetId = "ID Google Sheets"; 
+  var sheet = SpreadsheetApp.openById(sheetId).getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var templateId = "ID Google Slides template";
+  var folderId = "ID folder tujuan";
+  
+  var folder = DriveApp.getFolderById(folderId);
+  
+  for (var i = 1; i < data.length; i++) {
+    var nama = data[i][0]?.toString().trim(); 
+    var jabatan = data[i][1]?.toString().trim(); 
+    var nomor = data[i][2]?.toString().trim(); 
+    var status = data[i][3]?.toString().trim(); "Sudah Dibuat"
+    
+    Logger.log("Processing: " + nama + " | " + jabatan + " | " + nomor);
+    
+    if (!nama || status === "Sudah Dibuat") {
+      Logger.log("Skipping row " + (i + 1) + ": No name or already processed.");
+      continue; // Lewati jika nama kosong atau sudah diproses
+    }
+    
+    try {
+      var file = DriveApp.getFileById(templateId).makeCopy(nama + " - Certificate", folder);
+      var copiedTemplateId = file.getId();
+      let slide = SlidesApp.openById(copiedTemplateId);
+      
+      var slidePage = slide.getSlides()[0]; // Mengakses slide pertama
+
+      slidePage.replaceAllText("{{Nama}}", nama);
+      slidePage.replaceAllText("{{Jabatan}}", jabatan);
+      slidePage.replaceAllText("{{Nomor}}", nomor);
+      
+      slide.saveAndClose();
+      
+      Logger.log("Slide updated for: " + nama);
+      
+      var pdf = DriveApp.getFileById(copiedTemplateId).getAs('application/pdf');
+      folder.createFile(pdf);
+      DriveApp.getFileById(copiedTemplateId).setTrashed(true); // Hapus dokumen slides setelah konversi
+      
+      sheet.getRange(i + 1, 4).setValue("Sudah Dibuat");
+      Logger.log("Certificate created and marked as 'Sudah Dibuat' for: " + nama);
+    } catch (error) {
+      Logger.log("Error processing " + nama + ": " + error.message);
+      break;
+    }
+  }
+}
